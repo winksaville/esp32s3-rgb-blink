@@ -44,7 +44,7 @@ Blink the RGB LED on an ESP32 S3 DevKitC.
 
 ## arduion-cli
 
-Added support for arduino-cli.  You can init, compile, upload, monitor and
+Added support for arduino-cli via a Makefile and you can init, compile, upload, list, monitor and
 clean from the command line.
 
 ## License

@@ -12,10 +12,13 @@ SKETCH := esp32s3-rgb-blink.ino
 BUILD  := build
 BAUD   ?= 115200
 FQBN   ?= esp32:esp32:esp32s3
+DTO    ?= 100ms
+LFRMT  ?= # Set or pass on the command line, "--json" for JSON output
+
 
 CLI    := arduino-cli --config-file $(CONFIG)
 
-.PHONY: all init compile upload monitor clean
+.PHONY: all init compile list upload monitor clean
 
 all: compile
 
@@ -34,10 +37,13 @@ compile: build/$(SKETCH).bin
 # Helper: resolve port (use PORT if set, else auto-detect), then run $(1)
 define GET_PORT
 	@P="$$( [ -n "$(PORT)" ] && printf "%s" "$(PORT)" \
-	      || $(CLI) board list --format json | jq -r '.detected_ports[0]?.port.address // empty' )"; \
+	      || $(CLI) board list --discovery-timeout $(DTO) --json | jq -r '.detected_ports[0]?.port.address // empty' )"; \
 	test -n "$$P" || { echo "Error: no serial port detected. Set PORT=/dev/ttyXXX"; exit 1; }; \
 	$(1)
 endef
+
+list:
+	$(CLI) board list $(LFRMT) --discovery-timeout $(DTO)
 
 upload: compile
 	$(call GET_PORT,$(CLI) upload -p "$$P" -b $(FQBN) --input-dir $(BUILD))
