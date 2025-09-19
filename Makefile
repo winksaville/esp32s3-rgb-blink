@@ -13,43 +13,55 @@ BUILD  := build
 BAUD   ?= 115200
 FQBN   ?= esp32:esp32:esp32s3
 DTO    ?= 100ms
-LFRMT  ?= # Set or pass on the command line, "--json" for JSON output
+LFRMT  ?=                # pass "--json" to get JSON output
+PORT   ?=                # optional: set to /dev/ttyUSB0 to skip auto-detect
 
+CLI := arduino-cli --config-file "$(CONFIG)"
 
-CLI    := arduino-cli --config-file $(CONFIG)
+.PHONY: help all init compile list upload monitor clean c u m l cl
+.DEFAULT_GOAL := help
 
-.PHONY: all init compile list upload monitor clean
+help:
+	@echo "Targets:"; \
+	awk 'BEGIN{FS=":.*## "}; /^[A-Za-z0-9_.-]+:.*## / && $$2 != "alias" \
+	     {printf "  %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST); \
+	echo; echo "Aliases:"; \
+	awk 'BEGIN{FS=":"} /^[A-Za-z0-9_.-]+:.*##alias/ \
+	     {alias=$$1; sub(":","",alias); split($$2,deps," "); printf "  %-10s %s\n", alias, deps[1]}' $(MAKEFILE_LIST)
 
-all: compile
-
-init:
+init: ## One-time: init config, install core + libs
 	$(CLI) config init
 	$(CLI) config set network.connection_timeout 600s
 	$(CLI) core update-index
-	$(CLI) core install esp32:esp32
+	$(CLI) core install "esp32:esp32"
 	$(CLI) lib install "Adafruit NeoPixel"
 
-build/$(SKETCH).bin: $(SKETCH)
-	$(CLI) compile -b $(FQBN) --build-path $(BUILD)
+"$(BUILD)/$(SKETCH).bin": "$(SKETCH)"
+	$(CLI) compile -b "$(FQBN)" --build-path "$(BUILD)"
 
-compile: build/$(SKETCH).bin
+compile: "$(BUILD)/$(SKETCH).bin" ## Compile if sketch changed
+c: compile ##alias
 
 # Helper: resolve port (use PORT if set, else auto-detect), then run $(1)
 define GET_PORT
 	@P="$$( [ -n "$(PORT)" ] && printf "%s" "$(PORT)" \
-	      || $(CLI) board list --discovery-timeout $(DTO) --json | jq -r '.detected_ports[0]?.port.address // empty' )"; \
+	      || $(CLI) board list --discovery-timeout "$(DTO)" --json | jq -r '.detected_ports[0]?.port.address // empty' )"; \
 	test -n "$$P" || { echo "Error: no serial port detected. Set PORT=/dev/ttyXXX"; exit 1; }; \
 	$(1)
 endef
 
-list:
-	$(CLI) board list $(LFRMT) --discovery-timeout $(DTO)
+list: ## List connected boards
+	$(CLI) board list $(LFRMT) --discovery-timeout "$(DTO)"
+l: list ##alias
 
-upload: compile
-	$(call GET_PORT,$(CLI) upload -p "$$P" -b $(FQBN) --input-dir $(BUILD))
+upload: compile ## Upload the built sketch
+	$(call GET_PORT,$(CLI) upload -p "$$P" -b "$(FQBN)" --input-dir "$(BUILD)")
+u: upload ##alias
 
-monitor:
-	$(call GET_PORT,$(CLI) monitor -p "$$P" -c baudrate=$(BAUD))
+monitor: ## Open serial monitor
+	$(call GET_PORT,$(CLI) monitor -p "$$P" -c baudrate="$(BAUD)")
+m: monitor ##alias
 
-clean:
-	rm -rf $(BUILD)
+clean: ## Remove build artifacts
+	rm -rf -- "$(BUILD)"
+cl: clean ##alias
