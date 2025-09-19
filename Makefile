@@ -18,16 +18,18 @@ PORT   ?=                # optional: set to /dev/ttyUSB0 to skip auto-detect
 
 CLI := arduino-cli --config-file "$(CONFIG)"
 
-.PHONY: help all init compile list upload monitor clean c u m l cl
+.PHONY: help init compile list upload monitor clean c u m l cl
 .DEFAULT_GOAL := help
 
 help:
 	@echo "Targets:"; \
-	awk 'BEGIN{FS=":.*## "}; /^[A-Za-z0-9_.-]+:.*## / && $$2 != "alias" \
-	     {printf "  %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST); \
-	echo; echo "Aliases:"; \
-	awk 'BEGIN{FS=":"} /^[A-Za-z0-9_.-]+:.*##alias/ \
-	     {alias=$$1; sub(":","",alias); split($$2,deps," "); printf "  %-10s %s\n", alias, deps[1]}' $(MAKEFILE_LIST)
+	awk 'BEGIN{FS=":.*## "} \
+	  /^[A-Za-z0-9_.-]+:.*## / && $$2 != "alias" { order[++n]=$$1; desc[$$1]=$$2; next } \
+	  /^[A-Za-z0-9_.-]+:.*##alias/ { split($$0,p,":"); al=p[1]; sub(":","",al); sub(/^[ \t]*/,"",p[2]); split(p[2],deps," "); tgt=deps[1]; alias[tgt]=al } \
+	  END{ for(i=1;i<=n;i++){ name=order[i]; \
+	    if(name in alias) printf "  %-14s %s\n", name " (" alias[name] ")", desc[name]; \
+	    else               printf "  %-14s %s\n", name, desc[name]; \
+	  }}' $(MAKEFILE_LIST)
 
 init: ## One-time: init config, install core + libs
 	$(CLI) config init
@@ -36,10 +38,10 @@ init: ## One-time: init config, install core + libs
 	$(CLI) core install "esp32:esp32"
 	$(CLI) lib install "Adafruit NeoPixel"
 
-"$(BUILD)/$(SKETCH).bin": "$(SKETCH)"
+$(BUILD)/$(SKETCH).bin: $(SKETCH)
 	$(CLI) compile -b "$(FQBN)" --build-path "$(BUILD)"
 
-compile: "$(BUILD)/$(SKETCH).bin" ## Compile if sketch changed
+compile: $(BUILD)/$(SKETCH).bin ## Compile if sketch changed
 c: compile ##alias
 
 # Helper: resolve port (use PORT if set, else auto-detect), then run $(1)
