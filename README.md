@@ -42,6 +42,11 @@ Blink the RGB LED on an ESP32 S3 DevKitC.
    and on the serial monitor you should see the messages indicating the LED color changes and the
    time.
 
+## arduion-cli
+
+Added support for arduino-cli.  You can init, compile, upload, monitor and
+clean from the command line.
+
 ## License
 
 Licensed under either of

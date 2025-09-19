@@ -1,0 +1,4 @@
+board_manager:
+    additional_urls: []
+network:
+    connection_timeout: 600s
