@@ -1,6 +1,14 @@
 # Makefile for Arduino CLI projects
+#
+# NOTE on .DELETE_ON_ERROR:
+# We scope it to the binary so if the compile rule fails partway through,
+# make will delete the *target file* instead of leaving a half-written .bin
+# that could appear "up-to-date" later. This won’t catch failures when:
+#   - the failing target is PHONY (no file to delete),
+#   - the tool writes elsewhere or moves files after failure,
+#   - corruption happens but the command still exits 0.
+# For release/final builds, consider running:  make clean  first.
 
-# Require jq so we can detect port
 JQ := $(shell command -v jq 2>/dev/null)
 ifeq ($(JQ),)
 $(error "jq not found, please install jq")
@@ -37,6 +45,9 @@ init: ## One-time: init config, install core + libs
 	$(CLI) core update-index
 	$(CLI) core install "esp32:esp32"
 	$(CLI) lib install "Adafruit NeoPixel"
+
+# delete half-baked binary if compile fails
+.DELETE_ON_ERROR: $(BUILD)/$(SKETCH).bin
 
 $(BUILD)/$(SKETCH).bin: $(SKETCH)
 	$(CLI) compile -b "$(FQBN)" --build-path "$(BUILD)"
